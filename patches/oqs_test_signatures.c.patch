@@ -1,0 +1,47 @@
+diff --git a/test/oqs_test_signatures.c b/test/oqs_test_signatures.c
+index d629e28..fa8de6e 100644
+--- a/test/oqs_test_signatures.c
++++ b/test/oqs_test_signatures.c
+@@ -36,7 +36,8 @@ static const char *sigalg_names[] = {
+ 
+ static int test_oqs_signatures(const char *sigalg_name)
+ {
+-  EVP_MD_CTX *mdctx = NULL;
++  EVP_MD_CTX *mdctx_sign = NULL; // Renamed for clarity
++  EVP_MD_CTX *mdctx_verify = NULL; // New context for verification
+   EVP_PKEY_CTX *ctx = NULL;
+   EVP_PKEY *key = NULL;
+   const char msg[] = "The quick brown fox jumps over... you know what";
+@@ -44,20 +45,22 @@ static int test_oqs_signatures(const char *sigalg_name)
+   size_t siglen;
+ 
+   int testresult =
+-    (mdctx = EVP_MD_CTX_new()) != NULL
++    (mdctx_sign = EVP_MD_CTX_new()) != NULL
+     && (ctx = EVP_PKEY_CTX_new_from_name(libctx, sigalg_name, NULL)) != NULL
+     && EVP_PKEY_keygen_init(ctx)
+-    && EVP_PKEY_gen(ctx, &key)
+-    && EVP_DigestSignInit_ex(mdctx, NULL, "SHA512", libctx, NULL, key)
+-    && EVP_DigestSignUpdate(mdctx, msg, sizeof(msg))
+-    && EVP_DigestSignFinal(mdctx, NULL, &siglen)
++    && EVP_PKEY_keygen(ctx, &key)
++    && EVP_DigestSignInit_ex(mdctx_sign, NULL, "SHA512", libctx, NULL, key, NULL)
++    && EVP_DigestSignUpdate(mdctx_sign, msg, sizeof(msg))
++    && EVP_DigestSignFinal(mdctx_sign, NULL, &siglen)
+     && (sig = OPENSSL_malloc(siglen)) != NULL
+-    && EVP_DigestSignFinal(mdctx, sig, &siglen)
+-    && EVP_DigestVerifyInit_ex(mdctx, NULL, "SHA512", libctx, NULL, key)
+-    && EVP_DigestVerifyUpdate(mdctx, msg, sizeof(msg))
+-    && EVP_DigestVerifyFinal(mdctx, sig, siglen);
++    && EVP_DigestSignFinal(mdctx_sign, sig, &siglen)
++    && (mdctx_verify = EVP_MD_CTX_new()) != NULL // Create new context for verification
++    && EVP_DigestVerifyInit_ex(mdctx_verify, NULL, "SHA512", libctx, NULL, key, NULL)
++    && EVP_DigestVerifyUpdate(mdctx_verify, msg, sizeof(msg))
++    && EVP_DigestVerifyFinal(mdctx_verify, sig, siglen);
+ 
+-  EVP_MD_CTX_free(mdctx);
++  EVP_MD_CTX_free(mdctx_sign);
++  EVP_MD_CTX_free(mdctx_verify); // Free the new context
+   EVP_PKEY_free(key);
+   OPENSSL_free(ctx);
+   return testresult;

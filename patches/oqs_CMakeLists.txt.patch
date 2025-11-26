@@ -1,0 +1,10 @@
+diff --git a/oqsprov/CMakeLists.txt b/oqsprov/CMakeLists.txt
+index b6a4173..2b65d22 100644
+--- a/oqsprov/CMakeLists.txt
++++ b/oqsprov/CMakeLists.txt
+@@ -10,3 +10,5 @@ set_target_properties(oqsprovider
+   PROPERTIES PREFIX "" OUTPUT_NAME "oqsprovider"
+ )
+ target_link_libraries(oqsprovider ${liboqs_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY})
++install(TARGETS oqsprovider
++        LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/ossl-modules)
