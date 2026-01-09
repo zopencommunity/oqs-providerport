@@ -1,0 +1,25 @@
+diff --git a/oqsprov/CMakeLists.txt b/oqsprov/CMakeLists.txt
+index e83d95a..c3870b9 100644
+--- a/oqsprov/CMakeLists.txt
++++ b/oqsprov/CMakeLists.txt
+@@ -23,8 +23,10 @@ if(OQS_PROVIDER_BUILD_STATIC)
+   set(OQS_LIBRARY_TYPE STATIC)
+ endif()
+ 
+-add_library(oqsprovider ${OQS_LIBRARY_TYPE} ${PROVIDER_SOURCE_FILES})
++set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+ 
++add_library(oqsprovider ${OQS_LIBRARY_TYPE} ${PROVIDER_SOURCE_FILES})
++target_compile_options(oqsprovider PRIVATE -fPIC -fvisibility=default)
+ set_target_properties(oqsprovider
+     PROPERTIES
+     OUTPUT_NAME "oqsprovider"
+@@ -85,7 +87,7 @@ if(LIBOQS_LIBRARY_TYPE STREQUAL "STATIC_LIBRARY" AND CMAKE_VERSION VERSION_GREAT
+ endif()
+ 
+ install(TARGETS oqsprovider
+-        LIBRARY DESTINATION "${OPENSSL_MODULES_PATH}"
++	LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/ossl-modules"
+         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+         PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/oqs-provider/"
+         RUNTIME DESTINATION "${OPENSSL_MODULES_PATH}")

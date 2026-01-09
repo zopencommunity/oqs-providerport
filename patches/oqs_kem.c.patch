@@ -1,0 +1,12 @@
+diff --git a/oqsprov/oqs_kem.c b/oqsprov/oqs_kem.c
+index 621742b..2a57ee1 100644
+--- a/oqsprov/oqs_kem.c
++++ b/oqsprov/oqs_kem.c
+@@ -36,7 +36,6 @@
+ #endif // NDEBUG
+ 
+ static OSSL_FUNC_kem_newctx_fn oqs_kem_newctx;
+-static OSSL_FUNC_kem_encapsulate_init_fn oqs_kem_encaps_init;
+ static OSSL_FUNC_kem_encapsulate_fn oqs_qs_kem_encaps;
+ static OSSL_FUNC_kem_decapsulate_fn oqs_qs_kem_decaps;
+ static OSSL_FUNC_kem_freectx_fn oqs_kem_freectx;
