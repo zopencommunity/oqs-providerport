@@ -1,8 +1,180 @@
 diff --git a/oqsprov/oqs_decode_der2key.c b/oqsprov/oqs_decode_der2key.c
-index 4b684e5..d996e62 100644
+index 4b684e5..3818168 100644
 --- a/oqsprov/oqs_decode_der2key.c
 +++ b/oqsprov/oqs_decode_der2key.c
-@@ -526,121 +526,117 @@ static void oqsx_key_adjust(void *key, struct der2key_ctx_st *ctx) {
+@@ -119,12 +119,44 @@ ASN1_SEQUENCE(X509_PUBKEY_INTERNAL) =
+     * oqsx_d2i_X509_PUBKEY_INTERNAL(const unsigned char **pp, long len,
+                                     OSSL_LIB_CTX *libctx) {
+     X509_PUBKEY *xpub = OPENSSL_zalloc(sizeof(*xpub));
++    ASN1_VALUE *val = NULL;
++    const unsigned char *p = *pp;
++    long l = len;
++    int ptag, pclass;
++    long plen;
+ 
+     if (xpub == NULL)
+         return NULL;
+-    return (X509_PUBKEY *)ASN1_item_d2i_ex((ASN1_VALUE **)&xpub, pp, len,
+-                                           ASN1_ITEM_rptr(X509_PUBKEY_INTERNAL),
+-                                           libctx, NULL);
++
++    /*
++     * Strict SubjectPublicKeyInfo structure check using ASN1_get_object.
++     * Sequence { algorithm AlgorithmIdentifier, publicKey BIT STRING }
++     */
++    if (!(ASN1_get_object(&p, &plen, &ptag, &pclass, l) & V_ASN1_CONSTRUCTED)
++        || ptag != V_ASN1_SEQUENCE || pclass != V_ASN1_UNIVERSAL) {
++        OPENSSL_free(xpub);
++        return NULL;
++    }
++
++    l -= (p - *pp);
++    /* Check for AlgorithmIdentifier (SEQUENCE) */
++    if (!(ASN1_get_object(&p, &plen, &ptag, &pclass, l) & V_ASN1_CONSTRUCTED)
++        || ptag != V_ASN1_SEQUENCE || pclass != V_ASN1_UNIVERSAL) {
++        OPENSSL_free(xpub);
++        return NULL;
++    }
++
++    ERR_set_mark();
++    val = ASN1_item_d2i_ex((ASN1_VALUE **)&xpub, pp, len,
++                          ASN1_ITEM_rptr(X509_PUBKEY_INTERNAL),
++                          libctx, NULL);
++    if (val == NULL) {
++        ERR_pop_to_mark();
++        OPENSSL_free(xpub);
++        return NULL;
++    }
++    ERR_clear_last_mark();
++    return (X509_PUBKEY *)val;
+ }
+ // end steal TBD
+ 
+@@ -166,17 +198,44 @@ static void *oqs_der2key_decode_p8(const unsigned char **input_der,
+     PKCS8_PRIV_KEY_INFO *p8inf = NULL;
+     const X509_ALGOR *alg = NULL;
+     void *key = NULL;
++    const unsigned char *p = *input_der;
++    long len = input_der_len;
++    int ptag, pclass;
++    long plen;
+ 
+     OQS_DEC_PRINTF2(
+         "OQS DEC provider: oqs_der2key_decode_p8 called. Keytype: %d.\n",
+         ctx->desc->evp_type);
+ 
+-    if ((p8inf = d2i_PKCS8_PRIV_KEY_INFO(NULL, input_der, input_der_len)) !=
+-            NULL &&
+-        PKCS8_pkey_get0(NULL, NULL, NULL, &alg, p8inf) &&
+-        OBJ_obj2nid(alg->algorithm) == ctx->desc->evp_type)
+-        key = key_from_pkcs8(p8inf, PROV_OQS_LIBCTX_OF(ctx->provctx), NULL);
+-    PKCS8_PRIV_KEY_INFO_free(p8inf);
++    if (getenv("OQSDEC_DISABLE_P8"))
++        return NULL;
++
++    /*
++     * Strict PKCS#8 PrivateKeyInfo structure check using ASN1_get_object
++     * to avoid triggering errors in full d2i calls.
++     * Sequence { version Version, ... }
++     */
++    if (!(ASN1_get_object(&p, &plen, &ptag, &pclass, len) & V_ASN1_CONSTRUCTED)
++        || ptag != V_ASN1_SEQUENCE || pclass != V_ASN1_UNIVERSAL)
++        return NULL;
++
++    len -= (p - *input_der);
++    if ((ASN1_get_object(&p, &plen, &ptag, &pclass, len) & V_ASN1_CONSTRUCTED)
++        || ptag != V_ASN1_INTEGER || pclass != V_ASN1_UNIVERSAL
++        || plen != 1 || (*p != 0 && *p != 1))
++        return NULL;
++
++    ERR_set_mark();
++    p8inf = d2i_PKCS8_PRIV_KEY_INFO(NULL, input_der, (long)input_der_len);
++    if (p8inf == NULL) {
++        ERR_pop_to_mark();
++    } else {
++        ERR_clear_last_mark();
++        if (PKCS8_pkey_get0(NULL, NULL, NULL, &alg, p8inf) &&
++            OBJ_obj2nid(alg->algorithm) == ctx->desc->evp_type)
++            key = key_from_pkcs8(p8inf, PROV_OQS_LIBCTX_OF(ctx->provctx), NULL);
++        PKCS8_PRIV_KEY_INFO_free(p8inf);
++    }
+ 
+     return key;
+ }
+@@ -190,7 +249,13 @@ OQSX_KEY *oqsx_d2i_PUBKEY(OQSX_KEY **a, const unsigned char **pp, long length) {
+         "OQS DEC provider: oqsx_d2i_PUBKEY called with length %ld\n", length);
+ 
+     // only way to re-create X509 object?? TBD
++    ERR_set_mark();
+     xpk = oqsx_d2i_X509_PUBKEY_INTERNAL(pp, length, NULL);
++    if (xpk == NULL) {
++        ERR_pop_to_mark();
++        return NULL;
++    }
++    ERR_clear_last_mark();
+ 
+     key = oqsx_key_from_x509pubkey(xpk, NULL, NULL);
+     X509_PUBKEY_free(xpk);
+@@ -314,31 +379,51 @@ static int oqs_der2key_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
+ 
+     if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
+         derp = der;
++        ERR_set_mark();
+         if (ctx->desc->d2i_PKCS8 != NULL) {
+             key = ctx->desc->d2i_PKCS8(NULL, &derp, der_len, ctx);
+-            if (ctx->flag_fatal)
++            if (ctx->flag_fatal) {
++                ERR_clear_last_mark();
+                 goto end;
++            }
+         } else if (ctx->desc->d2i_private_key != NULL) {
+             key = ctx->desc->d2i_private_key(NULL, &derp, der_len);
+         }
+-        if (key == NULL && ctx->selection != 0)
+-            goto next;
++        if (key == NULL) {
++            ERR_pop_to_mark();
++            if (ctx->selection != 0)
++                goto next;
++        } else {
++            ERR_clear_last_mark();
++        }
+     }
+     if (key == NULL && (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
+         derp = der;
++        ERR_set_mark();
+         if (ctx->desc->d2i_PUBKEY != NULL)
+             key = ctx->desc->d2i_PUBKEY(NULL, &derp, der_len);
+         else
+             key = ctx->desc->d2i_public_key(NULL, &derp, der_len);
+-        if (key == NULL && ctx->selection != 0)
+-            goto next;
++        if (key == NULL) {
++            ERR_pop_to_mark();
++            if (ctx->selection != 0)
++                goto next;
++        } else {
++            ERR_clear_last_mark();
++        }
+     }
+     if (key == NULL && (selection & OSSL_KEYMGMT_SELECT_ALL_PARAMETERS) != 0) {
+         derp = der;
++        ERR_set_mark();
+         if (ctx->desc->d2i_key_params != NULL)
+             key = ctx->desc->d2i_key_params(NULL, &derp, der_len);
+-        if (key == NULL && ctx->selection != 0)
+-            goto next;
++        if (key == NULL) {
++            ERR_pop_to_mark();
++            if (ctx->selection != 0)
++                goto next;
++        } else {
++            ERR_clear_last_mark();
++        }
+     }
+ 
+     /*
+@@ -526,121 +611,117 @@ static void oqsx_key_adjust(void *key, struct der2key_ctx_st *ctx) {
  ///// OQS_TEMPLATE_FRAGMENT_DECODER_MAKE_START
  #ifdef OQS_KEM_ENCODERS
  
@@ -174,7 +346,7 @@ index 4b684e5..d996e62 100644
  MAKE_DECODER(_ecp, "p256_bikel1", p256_bikel1, oqsx, PrivateKeyInfo);
  MAKE_DECODER(_ecp, "p256_bikel1", p256_bikel1, oqsx, SubjectPublicKeyInfo);
  
-@@ -650,6 +646,7 @@ MAKE_DECODER(_ecx, "x25519_bikel1", x25519_bikel1, oqsx, SubjectPublicKeyInfo);
+@@ -650,6 +731,7 @@ MAKE_DECODER(_ecx, "x25519_bikel1", x25519_bikel1, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "bikel3", bikel3, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "bikel3", bikel3, oqsx, SubjectPublicKeyInfo);
  
@@ -182,7 +354,7 @@ index 4b684e5..d996e62 100644
  MAKE_DECODER(_ecp, "p384_bikel3", p384_bikel3, oqsx, PrivateKeyInfo);
  MAKE_DECODER(_ecp, "p384_bikel3", p384_bikel3, oqsx, SubjectPublicKeyInfo);
  
-@@ -659,10 +656,12 @@ MAKE_DECODER(_ecx, "x448_bikel3", x448_bikel3, oqsx, SubjectPublicKeyInfo);
+@@ -659,10 +741,12 @@ MAKE_DECODER(_ecx, "x448_bikel3", x448_bikel3, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "bikel5", bikel5, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "bikel5", bikel5, oqsx, SubjectPublicKeyInfo);
  
@@ -195,7 +367,7 @@ index 4b684e5..d996e62 100644
  MAKE_DECODER(, "mldsa44", mldsa44, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "mldsa44", mldsa44, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "p256_mldsa44", p256_mldsa44, oqsx, PrivateKeyInfo);
-@@ -682,73 +681,43 @@ MAKE_DECODER(, "falcon512", falcon512, oqsx, SubjectPublicKeyInfo);
+@@ -682,73 +766,43 @@ MAKE_DECODER(, "falcon512", falcon512, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "p256_falcon512", p256_falcon512, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "p256_falcon512", p256_falcon512, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "rsa3072_falcon512", rsa3072_falcon512, oqsx, PrivateKeyInfo);
@@ -299,7 +471,7 @@ index 4b684e5..d996e62 100644
  MAKE_DECODER(, "mayo1", mayo1, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "mayo1", mayo1, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "p256_mayo1", p256_mayo1, oqsx, PrivateKeyInfo);
-@@ -765,10 +734,8 @@ MAKE_DECODER(, "mayo5", mayo5, oqsx, PrivateKeyInfo);
+@@ -765,10 +819,8 @@ MAKE_DECODER(, "mayo5", mayo5, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "mayo5", mayo5, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "p521_mayo5", p521_mayo5, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "p521_mayo5", p521_mayo5, oqsx, SubjectPublicKeyInfo);
@@ -312,7 +484,7 @@ index 4b684e5..d996e62 100644
  MAKE_DECODER(, "OV_Is_pkc", OV_Is_pkc, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "OV_Is_pkc", OV_Is_pkc, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "p256_OV_Is_pkc", p256_OV_Is_pkc, oqsx, PrivateKeyInfo);
-@@ -780,13 +747,11 @@ MAKE_DECODER(, "p256_OV_Ip_pkc", p256_OV_Ip_pkc, oqsx, SubjectPublicKeyInfo);
+@@ -780,13 +832,11 @@ MAKE_DECODER(, "p256_OV_Ip_pkc", p256_OV_Ip_pkc, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "OV_Is_pkc_skc", OV_Is_pkc_skc, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "OV_Is_pkc_skc", OV_Is_pkc_skc, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "p256_OV_Is_pkc_skc", p256_OV_Is_pkc_skc, oqsx, PrivateKeyInfo);
@@ -328,7 +500,7 @@ index 4b684e5..d996e62 100644
  MAKE_DECODER(, "snova2454", snova2454, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "snova2454", snova2454, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "p256_snova2454", p256_snova2454, oqsx, PrivateKeyInfo);
-@@ -794,8 +759,7 @@ MAKE_DECODER(, "p256_snova2454", p256_snova2454, oqsx, SubjectPublicKeyInfo);
+@@ -794,8 +844,7 @@ MAKE_DECODER(, "p256_snova2454", p256_snova2454, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "snova2454esk", snova2454esk, oqsx, PrivateKeyInfo);
  MAKE_DECODER(, "snova2454esk", snova2454esk, oqsx, SubjectPublicKeyInfo);
  MAKE_DECODER(, "p256_snova2454esk", p256_snova2454esk, oqsx, PrivateKeyInfo);

@@ -1,8 +1,22 @@
 diff --git a/oqsprov/oqsprov_keys.c b/oqsprov/oqsprov_keys.c
-index 4cf664d..f7ffa2a 100644
+index 4cf664d..da42478 100644
 --- a/oqsprov/oqsprov_keys.c
 +++ b/oqsprov/oqsprov_keys.c
-@@ -52,8 +52,12 @@ static int oqsx_key_recreate_classickey(OQSX_KEY *key, oqsx_key_op_t op);
+@@ -41,7 +41,13 @@ typedef enum { KEY_OP_PUBLIC, KEY_OP_PRIVATE, KEY_OP_KEYGEN } oqsx_key_op_t;
+ 
+ typedef struct {
+     int nid;
++#ifdef __MVS__
++    __attribute__((encoding("ascii")))
++#endif
+     char *tlsname;
++#ifdef __MVS__
++    __attribute__((encoding("ascii")))
++#endif
+     char *oqsname;
+     int keytype;
+     int secbits;
+@@ -52,8 +58,12 @@ static int oqsx_key_recreate_classickey(OQSX_KEY *key, oqsx_key_op_t op);
  
  ///// OQS_TEMPLATE_FRAGMENT_OQSNAMES_START
  
@@ -16,7 +30,7 @@ index 4cf664d..f7ffa2a 100644
  #else
  #define NID_TABLE_LEN 67
  #endif
-@@ -61,166 +65,117 @@ static int oqsx_key_recreate_classickey(OQSX_KEY *key, oqsx_key_op_t op);
+@@ -61,166 +71,117 @@ static int oqsx_key_recreate_classickey(OQSX_KEY *key, oqsx_key_op_t op);
  static oqs_nid_name_t nid_names[NID_TABLE_LEN] = {
  #ifdef OQS_KEM_ENCODERS
  
@@ -292,3 +306,49 @@ index 4cf664d..f7ffa2a 100644
  };
  
  int oqs_set_nid(char *tlsname, int nid) {
+@@ -716,15 +677,28 @@ static OQSX_KEY *oqsx_key_op(const X509_ALGOR *palg, const unsigned char *p,
+ 
+     OQS_KEY_PRINTF2("OQSX KEY: key_op called with data of len %d\n", plen);
+     if (palg != NULL) {
+-        int ptype;
+-
+-        /* Algorithm parameters must be absent */
+-        X509_ALGOR_get0(NULL, &ptype, NULL, palg);
+-        if (ptype != V_ASN1_UNDEF || !palg || !palg->algorithm) {
+-            ERR_raise(ERR_LIB_USER, OQSPROV_R_INVALID_ENCODING);
+-            return 0;
+-        }
++        // First get the nid from the algorithm OID
+         nid = OBJ_obj2nid(palg->algorithm);
++        // Then get the keytype for the determined nid
++        int current_keytype = get_keytype(nid);
++
++        /* Algorithm parameters must be absent for non-ECP/ECBP hybrid KEMs.
++         * For ECP/ECBP hybrid KEMs, parameters (curve OID) must be present.
++         */
++        if (current_keytype == KEY_TYPE_ECP_HYB_KEM ||
++            current_keytype == KEY_TYPE_ECBP_HYB_KEM) {
++            // Parameters must be present and of type V_ASN1_OBJECT for ECP/ECBP hybrid KEMs
++            if (palg->parameter == NULL || OBJ_obj2nid(palg->parameter->value.object) == NID_undef) {
++                ERR_raise(ERR_LIB_USER, OQSPROV_R_INVALID_ENCODING);
++                return 0;
++            }
++        } else {
++            // For other key types, parameters must be absent
++            if (palg->parameter != NULL) {
++                ERR_raise(ERR_LIB_USER, OQSPROV_R_INVALID_ENCODING);
++                return 0;
++            }
++        }
+     }
+ 
+     if (p == NULL || nid == EVP_PKEY_NONE || nid == NID_undef) {
+@@ -742,7 +716,7 @@ static OQSX_KEY *oqsx_key_op(const X509_ALGOR *palg, const unsigned char *p,
+     if (op == KEY_OP_PUBLIC) {
+         if (key->pubkeylen != plen) {
+             ERR_raise(ERR_LIB_USER, OQSPROV_R_INVALID_ENCODING);
+-            goto err_key_op;
++            return 0;
+         }
+         if (oqsx_key_allocate_keymaterial(key, 0)) {
+             ERR_raise(ERR_LIB_USER, ERR_R_MALLOC_FAILURE);

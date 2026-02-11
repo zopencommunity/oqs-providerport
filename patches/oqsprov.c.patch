@@ -1,8 +1,8 @@
 diff --git a/oqsprov/oqsprov.c b/oqsprov/oqsprov.c
-index da74b9a..34882f5 100644
+index da74b9a..a66cba1 100644
 --- a/oqsprov/oqsprov.c
 +++ b/oqsprov/oqsprov.c
-@@ -56,465 +56,227 @@ extern OSSL_FUNC_provider_get_capabilities_fn oqs_provider_get_capabilities;
+@@ -56,465 +56,230 @@ extern OSSL_FUNC_provider_get_capabilities_fn oqs_provider_get_capabilities;
   */
  ///// OQS_TEMPLATE_FRAGMENT_ASSIGN_SIG_OIDS_START
  
@@ -14,6 +14,9 @@ index da74b9a..34882f5 100644
  #define OQS_OID_CNT 134
  #endif
 -const char *oqs_oid_alg_list[OQS_OID_CNT] = {
++#ifdef __MVS__
++__attribute__((encoding("ascii")))
++#endif
 +const char* oqs_oid_alg_list[OQS_OID_CNT] =
 +{
  
@@ -670,7 +673,7 @@ index da74b9a..34882f5 100644
      return 1;
  }
  
-@@ -700,7 +462,7 @@ static const OSSL_ALGORITHM oqsprovider_signatures[] = {
+@@ -700,7 +465,7 @@ static const OSSL_ALGORITHM oqsprovider_signatures[] = {
  #ifdef OQS_ENABLE_SIG_slh_dsa_pure_shake_256f
      SIGALG("slhdsashake256f", 256, oqs_signature_functions),
  #endif
@@ -679,7 +682,7 @@ index da74b9a..34882f5 100644
      {NULL, NULL, NULL}};
  
  static OSSL_ALGORITHM *oqsprovider_asym_kems_rt = NULL;
-@@ -735,6 +497,11 @@ static const OSSL_ALGORITHM oqsprovider_asym_kems[] = {
+@@ -735,6 +500,11 @@ static const OSSL_ALGORITHM oqsprovider_asym_kems[] = {
      KEMBASEALG(frodo1344shake, 256)
      KEMHYBALG(p521_frodo1344shake, 256)
  #endif
@@ -691,7 +694,7 @@ index da74b9a..34882f5 100644
  #ifdef OQS_ENABLE_KEM_ml_kem_512
      KEMBASEALG(mlkem512, 128)
      KEMHYBALG(p256_mlkem512, 128)
-@@ -769,8 +536,8 @@ static const OSSL_ALGORITHM oqsprovider_asym_kems[] = {
+@@ -769,8 +539,8 @@ static const OSSL_ALGORITHM oqsprovider_asym_kems[] = {
      KEMBASEALG(bikel5, 256)
      KEMHYBALG(p521_bikel5, 256)
  #endif
@@ -702,7 +705,7 @@ index da74b9a..34882f5 100644
      {NULL, NULL, NULL}};
  
  static OSSL_ALGORITHM *oqsprovider_keymgmt_rt = NULL;
-@@ -959,6 +726,14 @@ static const OSSL_ALGORITHM oqsprovider_keymgmt[] = {
+@@ -959,6 +729,14 @@ static const OSSL_ALGORITHM oqsprovider_keymgmt[] = {
  
      KEMKMHYBALG(p521_frodo1344shake, 256, ecp)
  
@@ -717,7 +720,7 @@ index da74b9a..34882f5 100644
  #endif
  #ifdef OQS_ENABLE_KEM_ml_kem_512
      KEMKMALG(mlkem512, 128)
-@@ -1011,8 +786,8 @@ static const OSSL_ALGORITHM oqsprovider_keymgmt[] = {
+@@ -1011,8 +789,8 @@ static const OSSL_ALGORITHM oqsprovider_keymgmt[] = {
      KEMKMHYBALG(p521_bikel5, 256, ecp)
  
  #endif
@@ -728,7 +731,30 @@ index da74b9a..34882f5 100644
      {NULL, NULL, NULL}};
  
  static OSSL_ALGORITHM *oqsprovider_encoder_rt = NULL;
-@@ -1293,95 +1068,288 @@ int OQS_PROVIDER_ENTRYPOINT_NAME(const OSSL_CORE_HANDLE *handle,
+@@ -1100,6 +878,22 @@ static const OSSL_ALGORITHM *oqsprovider_query(void *provctx, int operation_id,
+     // do not cache when rt algo filter is enabled
+     *no_cache = rt_algo_filter_enabled;
+ 
++    if (operation_id == OSSL_OP_DECODER && getenv("OQS_NO_P8_DECODER")) {
++        static OSSL_ALGORITHM *filtered_decoders = NULL;
++        if (filtered_decoders == NULL) {
++            int count = 0;
++            while (oqsprovider_decoder[count].algorithm_names != NULL) count++;
++            filtered_decoders = OPENSSL_zalloc(sizeof(OSSL_ALGORITHM) * (count + 1));
++            int j = 0;
++            for (int i = 0; i < count; i++) {
++                if (strstr(oqsprovider_decoder[i].property_definition, "structure=PrivateKeyInfo") == NULL) {
++                    filtered_decoders[j++] = oqsprovider_decoder[i];
++                }
++            }
++        }
++        return filtered_decoders;
++    }
++
+     switch (operation_id) {
+     case OSSL_OP_SIGNATURE:
+         FILTERED_ALGS(oqsprovider_signatures);
+@@ -1293,95 +1087,288 @@ int OQS_PROVIDER_ENTRYPOINT_NAME(const OSSL_CORE_HANDLE *handle,
      // ML-KEM implementation in OpenSSL 3.5 is _much_ more developed than this
      // code
      ///// OQS_TEMPLATE_FRAGMENT_DISABLE_OSSL_ALGS_START
