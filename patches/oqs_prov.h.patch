@@ -1,0 +1,14 @@
+diff --git a/oqsprov/oqs_prov.h b/oqsprov/oqs_prov.h
+index 5b82757..491edd1 100644
+--- a/oqsprov/oqs_prov.h
++++ b/oqsprov/oqs_prov.h
+@@ -1950,6 +1950,9 @@ extern const OSSL_DISPATCH oqs_ecp_p521_frodo1344aes_keymgmt_functions[];
+ extern const OSSL_DISPATCH oqs_frodo1344shake_keymgmt_functions[];
+ 
+ extern const OSSL_DISPATCH oqs_ecp_p521_frodo1344shake_keymgmt_functions[];
++extern const OSSL_DISPATCH oqs_kyber1024_keymgmt_functions[];
++extern const OSSL_DISPATCH oqs_ecp_p521_kyber1024_keymgmt_functions[];
++extern const OSSL_DISPATCH oqs_ecp_secp521_r1_kyber1024_keymgmt_functions[];
+ extern const OSSL_DISPATCH oqs_mlkem512_keymgmt_functions[];
+ 
+ extern const OSSL_DISPATCH oqs_ecp_p256_mlkem512_keymgmt_functions[];

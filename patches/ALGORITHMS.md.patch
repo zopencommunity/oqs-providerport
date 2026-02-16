@@ -1,5 +1,5 @@
 diff --git a/ALGORITHMS.md b/ALGORITHMS.md
-index a95351a..4ad1767 100644
+index 507d8c7..171dc2b 100644
 --- a/ALGORITHMS.md
 +++ b/ALGORITHMS.md
 @@ -30,6 +30,9 @@ The following list of algorithms may change when loading oqsprovider (version >=
@@ -12,7 +12,7 @@ index a95351a..4ad1767 100644
  | mlkem512 | 512 | Yes | OQS_CODEPOINT_MLKEM512 |
  | p256_mlkem512 | 0x2F4B | Yes | OQS_CODEPOINT_P256_MLKEM512 |
  | x25519_mlkem512 | 0x2FB6 | Yes | OQS_CODEPOINT_X25519_MLKEM512 |
-@@ -360,6 +363,9 @@ If [OQS_KEM_ENCODERS](CONFIGURE.md#OQS_KEM_ENCODERS) is enabled the following li
+@@ -336,6 +339,9 @@ If [OQS_KEM_ENCODERS](CONFIGURE.md#OQS_KEM_ENCODERS) is enabled the following li
  | p521_frodo1344aes | NULL | OQS_OID_P521_FRODO1344AES
  | frodo1344shake | NULL | OQS_OID_FRODO1344SHAKE
  | p521_frodo1344shake | NULL | OQS_OID_P521_FRODO1344SHAKE

@@ -1,5 +1,5 @@
 # bump: oqs-provider-version /OQS-PROVIDER_VERSION="(.*)"/ https://github.com/open-quantum-safe/oqs-provider.git|semver:*
-OQS_PROVIDER_VERSION="0.5.0"
+OQS_PROVIDER_VERSION="0.11.0"
 
 ###
 ### Build control file for the oqs-provider port
@@ -8,12 +8,13 @@ OQS_PROVIDER_VERSION="0.5.0"
 ###
 ### Required Environment Variables
 ###
-export ZOPEN_BUILD_LINE="STABLE"
+export ZOPEN_BUILD_LINE="DEV"
+export ZOPEN_DEV_TAG="${OQS_PROVIDER_VERSION}"
 export ZOPEN_STABLE_URL="https://github.com/open-quantum-safe/oqs-provider.git"
 #export ZOPEN_STABLE_TAG="openssl-3.0.0-alpha12-liboqs-0.5.0"
 export ZOPEN_STABLE_DEPS="autoconf automake cmake coreutils curl diffutils git grep make openssl perl sed liboqs"
 export ZOPEN_DEV_URL="https://github.com/open-quantum-safe/oqs-provider.git"
-export ZOPEN_DEV_DEPS="autconf automake cmake coreutils curl diffutils git grep make openssl perl sed liboqs"
+export ZOPEN_DEV_DEPS="autoconf automake cmake coreutils curl diffutils git grep make openssl perl sed liboqs"
 export ZOPEN_CATEGORIES="library"
 export ZOPEN_RUNTIME_DEPS=""
 #export ZOPEN_NAME="oqsprovider"

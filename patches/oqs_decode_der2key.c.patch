@@ -1,5 +1,5 @@
 diff --git a/oqsprov/oqs_decode_der2key.c b/oqsprov/oqs_decode_der2key.c
-index 4b684e5..3818168 100644
+index 6773bb9..8533537 100644
 --- a/oqsprov/oqs_decode_der2key.c
 +++ b/oqsprov/oqs_decode_der2key.c
 @@ -119,12 +119,44 @@ ASN1_SEQUENCE(X509_PUBKEY_INTERNAL) =
