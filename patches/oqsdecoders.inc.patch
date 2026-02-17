@@ -1,8 +1,8 @@
 diff --git a/oqsprov/oqsdecoders.inc b/oqsprov/oqsdecoders.inc
-index f5e766b..672b239 100644
+index cfa6c06..f7e1141 100644
 --- a/oqsprov/oqsdecoders.inc
 +++ b/oqsprov/oqsdecoders.inc
-@@ -72,6 +72,13 @@ DECODER_w_structure("frodo1344shake", der, SubjectPublicKeyInfo, frodo1344shake)
+@@ -72,6 +72,14 @@ DECODER_w_structure("frodo1344shake", der, SubjectPublicKeyInfo, frodo1344shake)
  DECODER_w_structure("p521_frodo1344shake", der, PrivateKeyInfo, p521_frodo1344shake),
  DECODER_w_structure("p521_frodo1344shake", der, SubjectPublicKeyInfo, p521_frodo1344shake),
  #endif
@@ -10,7 +10,8 @@ index f5e766b..672b239 100644
 +DECODER_w_structure("kyber1024", der, PrivateKeyInfo, kyber1024),
 +DECODER_w_structure("kyber1024", der, SubjectPublicKeyInfo, kyber1024),
 +DECODER_w_structure("p521_kyber1024", der, PrivateKeyInfo, p521_kyber1024),
-+DECODER_w_structure("p521_kyber1024", der, SubjectPublicKeyInfo, p521_kyber1024),DECODER_w_structure("secp521_r1_kyber1024", der, PrivateKeyInfo, secp521_r1_kyber1024),
++DECODER_w_structure("p521_kyber1024", der, SubjectPublicKeyInfo, p521_kyber1024),
++DECODER_w_structure("secp521_r1_kyber1024", der, PrivateKeyInfo, secp521_r1_kyber1024),
 +DECODER_w_structure("secp521_r1_kyber1024", der, SubjectPublicKeyInfo, secp521_r1_kyber1024),
 +#endif
  #ifdef OQS_ENABLE_KEM_ml_kem_512

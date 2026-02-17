@@ -1,5 +1,5 @@
 diff --git a/oqsprov/oqsencoders.inc b/oqsprov/oqsencoders.inc
-index 606afe4..05d4731 100644
+index 53ca748..ef0be6b 100644
 --- a/oqsprov/oqsencoders.inc
 +++ b/oqsprov/oqsencoders.inc
 @@ -200,6 +200,29 @@ ENCODER_w_structure("p521_frodo1344shake", p521_frodo1344shake, der, SubjectPubl

@@ -1,5 +1,5 @@
 diff --git a/oqsprov/oqs_kem.c b/oqsprov/oqs_kem.c
-index 621742b..2a57ee1 100644
+index 0ed3fbe..3ebd2d5 100644
 --- a/oqsprov/oqs_kem.c
 +++ b/oqsprov/oqs_kem.c
 @@ -36,7 +36,6 @@
